@@ -1,77 +1,110 @@
+import client.OrderClient;
+import client.UserClient;
 import io.qameta.allure.Description;
-import io.restassured.http.ContentType;
+import model.Order;
+import model.User;
+import org.apache.http.HttpStatus;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.*;
+import java.util.Arrays;
+import java.util.Collections;
+
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 
 public class OrderApiTest {
 
-    private static final String BASE = "https://stellarburgers.education-services.ru/api";
-    private static final String ING1 = "61c0c5a71d1f82001bdaaa6d";  // Флюоресцентная булка R2-D3
-    private static final String ING2 = "61c0c5a71d1f82001bdaaa72";  // Соус Spicy-X
+    private static final String ING1 = "61c0c5a71d1f82001bdaaa6d";
+    private static final String ING2 = "61c0c5a71d1f82001bdaaa72";
 
-    private String getToken() {
-        String email = "order" + System.currentTimeMillis() + "@yandex.ru";
-        String body = "{\"email\":\"" + email + "\",\"password\":\"pass123\",\"name\":\"Tester\"}";
-        return given().contentType(ContentType.JSON).body(body)
-                .post(BASE + "/auth/register")
-                .then().extract().path("accessToken");
+    private UserClient userClient;
+    private OrderClient orderClient;
+    private String accessToken;
+
+    @Before
+    public void setUp() {
+        userClient = new UserClient();
+        orderClient = new OrderClient();
+
+        User user = new User(
+                "order" + System.currentTimeMillis() + "@yandex.ru",
+                "pass123",
+                "Tester"
+        );
+        accessToken = userClient.register(user)
+                .then()
+                .extract().path("accessToken");
+    }
+
+    @After
+    public void tearDown() {
+        if (accessToken != null) {
+            userClient.delete(accessToken);
+        }
     }
 
     @Test
-    @Description("Создание заказа с авторизацией и ингредиентами")
-    public void createOrderWithAuthAndIngredients() {
-        String token = getToken();
-        String body = "{\"ingredients\":[\"" + ING1 + "\",\"" + ING2 + "\"]}";
+    @Description("Создание заказа с авторизацией возвращает 200")
+    public void createOrderWithAuthReturnsOk() {
+        Order order = new Order(Arrays.asList(ING1, ING2));
+        orderClient.create(order, accessToken)
+                .then()
+                .statusCode(HttpStatus.SC_OK);
+    }
 
-        given().contentType(ContentType.JSON)
-                .header("Authorization", token)
-                .body(body)
-                .when().post(BASE + "/orders")
-                .then().statusCode(200)
-                .body("success", equalTo(true))
+    @Test
+    @Description("Создание заказа с авторизацией возвращает success=true")
+    public void createOrderWithAuthReturnsSuccess() {
+        Order order = new Order(Arrays.asList(ING1, ING2));
+        orderClient.create(order, accessToken)
+                .then()
+                .body("success", equalTo(true));
+    }
+
+    @Test
+    @Description("Создание заказа с авторизацией возвращает номер заказа")
+    public void createOrderWithAuthReturnsNumber() {
+        Order order = new Order(Arrays.asList(ING1, ING2));
+        orderClient.create(order, accessToken)
+                .then()
                 .body("order.number", notNullValue());
     }
 
     @Test
-    @Description("Создание заказа без авторизации. По документации ожидается 401, " +
-            "но стенд фактически принимает заказ и возвращает 200 — согласовано с ревьюером")
-    public void createOrderWithoutAuth() {
-        String body = "{\"ingredients\":[\"" + ING1 + "\"]}";
-
-        given().contentType(ContentType.JSON)
-                .body(body)
-                .when().post(BASE + "/orders")
-                .then().statusCode(200)
-                .body("success", equalTo(true))
-                .body("order.number", notNullValue());
+    @Description("Создание заказа без ингредиентов возвращает 400")
+    public void createOrderWithoutIngredientsReturnsBadRequest() {
+        Order empty = new Order(Collections.emptyList());
+        orderClient.create(empty, accessToken)
+                .then()
+                .statusCode(HttpStatus.SC_BAD_REQUEST);
     }
 
     @Test
-    @Description("Создание заказа без ингредиентов")
-    public void createOrderWithoutIngredients() {
-        String token = getToken();
-        String body = "{\"ingredients\":[]}";
-
-        given().contentType(ContentType.JSON)
-                .header("Authorization", token)
-                .body(body)
-                .when().post(BASE + "/orders")
-                .then().statusCode(400)
+    @Description("Создание заказа без ингредиентов возвращает сообщение об ошибке")
+    public void createOrderWithoutIngredientsReturnsMessage() {
+        Order empty = new Order(Collections.emptyList());
+        orderClient.create(empty, accessToken)
+                .then()
                 .body("message", equalTo("Ingredient ids must be provided"));
     }
 
     @Test
-    @Description("Создание заказа с неверным хешем ингредиента")
-    public void createOrderWithInvalidHash() {
-        String token = getToken();
-        String body = "{\"ingredients\":[\"invalid_hash_123\"]}";
+    @Description("Создание заказа с неверным хешем возвращает 500")
+    public void createOrderWithInvalidHashReturnsServerError() {
+        Order invalid = new Order(Collections.singletonList("invalid_hash_123"));
+        orderClient.create(invalid, accessToken)
+                .then()
+                .statusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
+    }
 
-        given().contentType(ContentType.JSON)
-                .header("Authorization", token)
-                .body(body)
-                .when().post(BASE + "/orders")
-                .then().statusCode(500);
+    @Test
+    @Description("Создание заказа без авторизации возвращает 200 (поведение стенда)")
+    public void createOrderWithoutAuthReturnsOk() {
+        Order order = new Order(Collections.singletonList(ING1));
+        orderClient.createWithoutAuth(order)
+                .then()
+                .statusCode(HttpStatus.SC_OK);
     }
 }
