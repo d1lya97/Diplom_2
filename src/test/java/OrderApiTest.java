@@ -16,8 +16,9 @@ import static org.hamcrest.Matchers.notNullValue;
 
 public class OrderApiTest {
 
-    private static final String ING1 = "61c0c5a71d1f82001bdaaa6d";
-    private static final String ING2 = "61c0c5a71d1f82001bdaaa72";
+    private static final String BUN_ID = "61c0c5a71d1f82001bdaaa6d";
+    private static final String SAUCE_ID = "61c0c5a71d1f82001bdaaa72";
+    private static final String INVALID_HASH = "invalid_hash_123";
 
     private UserClient userClient;
     private OrderClient orderClient;
@@ -48,16 +49,16 @@ public class OrderApiTest {
     @Test
     @Description("Создание заказа с авторизацией возвращает 200")
     public void createOrderWithAuthReturnsOk() {
-        Order order = new Order(Arrays.asList(ING1, ING2));
+        Order order = new Order(Arrays.asList(BUN_ID, SAUCE_ID));
         orderClient.create(order, accessToken)
                 .then()
                 .statusCode(HttpStatus.SC_OK);
     }
 
     @Test
-    @Description("Создание заказа с авторизацией возвращает success=true")
+    @Description("Создание заказа с авторизацией возвращает success true")
     public void createOrderWithAuthReturnsSuccess() {
-        Order order = new Order(Arrays.asList(ING1, ING2));
+        Order order = new Order(Arrays.asList(BUN_ID, SAUCE_ID));
         orderClient.create(order, accessToken)
                 .then()
                 .body("success", equalTo(true));
@@ -66,7 +67,7 @@ public class OrderApiTest {
     @Test
     @Description("Создание заказа с авторизацией возвращает номер заказа")
     public void createOrderWithAuthReturnsNumber() {
-        Order order = new Order(Arrays.asList(ING1, ING2));
+        Order order = new Order(Arrays.asList(BUN_ID, SAUCE_ID));
         orderClient.create(order, accessToken)
                 .then()
                 .body("order.number", notNullValue());
@@ -93,7 +94,7 @@ public class OrderApiTest {
     @Test
     @Description("Создание заказа с неверным хешем возвращает 500")
     public void createOrderWithInvalidHashReturnsServerError() {
-        Order invalid = new Order(Collections.singletonList("invalid_hash_123"));
+        Order invalid = new Order(Collections.singletonList(INVALID_HASH));
         orderClient.create(invalid, accessToken)
                 .then()
                 .statusCode(HttpStatus.SC_INTERNAL_SERVER_ERROR);
@@ -102,7 +103,7 @@ public class OrderApiTest {
     @Test
     @Description("Создание заказа без авторизации возвращает 200 (поведение стенда)")
     public void createOrderWithoutAuthReturnsOk() {
-        Order order = new Order(Collections.singletonList(ING1));
+        Order order = new Order(Collections.singletonList(BUN_ID));
         orderClient.createWithoutAuth(order)
                 .then()
                 .statusCode(HttpStatus.SC_OK);

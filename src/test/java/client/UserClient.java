@@ -1,5 +1,6 @@
 package client;
 
+import io.qameta.allure.Step;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import model.User;
@@ -8,28 +9,29 @@ import static io.restassured.RestAssured.given;
 
 public class UserClient {
 
-    public static final String BASE = "https://stellarburgers.education-services.ru/api";
-
+    @Step("Зарегистрировать пользователя: {user.email}")
     public Response register(User user) {
         return given()
                 .contentType(ContentType.JSON)
-                .body(user)              // ← Gson сериализует автоматически
+                .body(user)
                 .when()
-                .post(BASE + "/auth/register");
+                .post(ApiConfig.BASE_URL + "/auth/register");
     }
 
+    @Step("Авторизовать пользователя: {user.email}")
     public Response login(User user) {
         return given()
                 .contentType(ContentType.JSON)
                 .body(user)
                 .when()
-                .post(BASE + "/auth/login");
+                .post(ApiConfig.BASE_URL + "/auth/login");
     }
 
+    @Step("Удалить пользователя по токену")
     public Response delete(String accessToken) {
         return given()
                 .header("Authorization", accessToken)
                 .when()
-                .delete(BASE + "/auth/user");
+                .delete(ApiConfig.BASE_URL + "/auth/user");
     }
 }

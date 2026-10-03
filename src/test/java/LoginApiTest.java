@@ -22,7 +22,6 @@ public class LoginApiTest {
                 "pass123",
                 "Tester"
         );
-        // Создаём пользователя через @Before
         accessToken = userClient.register(user)
                 .then()
                 .extract().path("accessToken");
